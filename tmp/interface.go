@@ -1,30 +1,28 @@
 package main
 
-import (
-	"context"
+import "reflect"
 
-	"github.com/kouzoh/mercari-offer-jp/app/model/offer"
-)
+type Num int
 
 // ServiceI interface holds interfaces for offer services
 type ServiceI interface {
 	// Offer interfaces
-	GetOne(ctx context.Context, ID string) (offer.Offer, error)
-	GetList(ctx context.Context, input *GetListInput) (map[string]string, error)
-	ValidateItem(ctx context.Context, input *ValidateItemInput) (output *ValidateItemOutput, err error)
-	Create(ctx context.Context, input *CreateInput) (offer.Offer, error)
-	Accept(ctx context.Context, ID string) (offer.Offer, error)
-	Decline(ctx context.Context, ID string) (offer.Offer, error)
-	CancelByUser(ctx context.Context, ID string) (offer.Offer, error)
-	Completing(ctx context.Context, ID string) (offer.Offer, error)
-	BackToAccept(ctx context.Context, ID string) (offer.Offer, error)
+	GetOne(ctx reflect.Kind, ID string) (reflect.Kind, error)
+	GetList(ctx reflect.Kind, input *reflect.Kind) (map[string]string, error)
+	ValidateItem(ctx reflect.Kind, input *reflect.SliceHeader) (output *reflect.Type, err error)
+	Create(ctx reflect.Kind, input *reflect.ChanDir) (reflect.Kind, error)
+	Accept(ctx reflect.Kind, ID string) (reflect.Kind, error)
+	Decline(ctx reflect.Kind, ID string) (reflect.Kind, error)
+	CancelByUser(ctx reflect.Kind, ID string) (reflect.Kind, error)
+	Completing(ctx reflect.Kind, ID string) (reflect.Kind, error)
+	BackToAccept(ctx reflect.Kind, ID string) (reflect.Kind, error)
 	// Admin interfaces
-	Update(ctx context.Context, input *UpdateInput) (offer.Offer, error)
-	Delete(ctx context.Context, input *DeleteInput) (offer.Offer, error)
-	CancelByAdmin(ctx context.Context, input *CancelByAdminInput) (offer.Offer, error)
-	Expire(ctx context.Context, input *ExpireInput) error
-	ExpireNotify(ctx context.Context, input *ExpireNotifyInput) error
-	CompleteByAdmin(ctx *context.Context, input *CompleteByAdminInput) (err error, f func(error) error)
+	Update(ctx reflect.Kind, input chan string) (reflect.Kind, error)
+	Delete(ctx reflect.Kind, input chan<- int) (reflect.Kind, error)
+	CancelByAdmin(ctx reflect.Kind, input <-chan struct{}) (Num, error)
+	Expire(ctx reflect.Kind, input *reflect.SelectCase) error
+	ExpireNotify(ctx reflect.Kind, input *reflect.SliceHeader) error
+	CompleteByAdmin(ctx *reflect.Kind, input *reflect.Method) (err error, f func(error) error)
 }
 
 func main() {

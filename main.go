@@ -148,28 +148,39 @@ func getValues(list []*ast.Field) string {
 
 func getZeroValue(expr ast.Expr) string {
 	switch v := expr.(type) {
-	case *ast.StarExpr, *ast.ArrayType, *ast.MapType, *ast.FuncType:
+	case *ast.StarExpr, *ast.SliceExpr, *ast.ArrayType, *ast.MapType, *ast.FuncType,
+		*ast.ChanType, *ast.StructType, *ast.InterfaceType:
 		return "nil"
 	case *ast.SelectorExpr:
-		return getZeroValue(v.X)
+		return getZeroValue(v.Sel)
 	case *ast.Ident:
-		switch v.Name {
-		case "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64", "byte", "rune", "uint", "int", "uintptr",
-			"float32", "float64",
-			"complex64", "complex128":
-			return "0"
-		case "bool":
-			return "false"
-		case "string":
-			return `""`
-		case "error":
-			return "nil"
-		default:
-			return "nil"
-		}
+		return getBuiltinZeroValue(v)
 	}
 	pp.Println(expr)
 	return "???"
+}
+
+func getBuiltinZeroValue(ident *ast.Ident) string {
+	switch ident.Name {
+	case "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64", "byte", "rune", "uint", "int", "uintptr",
+		"float32", "float64",
+		"complex64", "complex128":
+		return "0"
+	case "bool":
+		return "false"
+	case "string":
+		return `""`
+	case "error":
+		return "nil"
+	default:
+		if ident.Obj != nil {
+			if v, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
+				return getBuiltinZeroValue(v.Type.(*ast.Ident))
+			}
+		}
+		pp.Println(ident)
+		return "nil"
+	}
 }
 
 func getType(expr ast.Expr) string {
@@ -180,8 +191,8 @@ func getType(expr ast.Expr) string {
 		return getType(v.X) + "." + v.Sel.Name
 	case *ast.StarExpr:
 		return "*" + getType(v.X)
-	case *ast.ArrayType:
-		return "[]" + getType(v.Elt)
+	case *ast.SliceExpr:
+		return "[]" + getType(v.X)
 	case *ast.MapType:
 		return "map[" + getType(v.Key) + "]" + getType(v.Value)
 	case *ast.FuncType:
