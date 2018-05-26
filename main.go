@@ -156,13 +156,13 @@ func getZeroValue(expr ast.Expr) string {
 	case *ast.Ident:
 		return getBuiltinZeroValue(v)
 	}
-	pp.Println(expr)
-	return "???"
+	return "nil"
 }
 
 func getBuiltinZeroValue(ident *ast.Ident) string {
 	switch ident.Name {
-	case "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64", "byte", "rune", "uint", "int", "uintptr",
+	case "uint8", "uint16", "uint32", "uint64", "uint", "uintptr",
+		"int8", "int16", "int32", "int64", "int", "byte", "rune",
 		"float32", "float64",
 		"complex64", "complex128":
 		return "0"
