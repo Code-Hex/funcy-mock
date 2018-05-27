@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/format"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"log"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/k0kubun/pp"
@@ -30,6 +35,7 @@ func (i *Interface) ReturnField() string {
 
 type file struct {
 	*ast.File
+	info *types.Info
 	data map[string][]*Interface
 }
 
@@ -45,12 +51,43 @@ func main() {
 
 func MustParse(dir string) *file {
 	fset := token.NewFileSet()
-	af, err := parser.ParseFile(fset, dir, nil, parser.Mode(0))
+	af, err := parser.ParseFile(fset, dir, nil, parser.AllErrors)
 	if err != nil {
+		panic(err)
+	}
+	buildPkg, err := build.ImportDir(filepath.Dir(dir), 0)
+	if err != nil {
+		panic(err)
+	}
+	pp.Println(filepath.Dir(dir))
+	astFiles := make([]*ast.File, 0, 1+len(buildPkg.GoFiles)+len(buildPkg.CgoFiles))
+	astFiles = append(astFiles, af)
+	d := filepath.Dir(dir)
+	base := filepath.Base(dir)
+	for _, files := range [...][]string{buildPkg.GoFiles, buildPkg.CgoFiles} {
+		for _, filename := range files {
+			if filename == base {
+				// already parsed this file above
+				continue
+			}
+			file, err := parser.ParseFile(fset, path.Join(d, filename), nil, 0)
+			if err != nil {
+				panic(err)
+			}
+			astFiles = append(astFiles, file)
+		}
+	}
+	info := &types.Info{
+		Uses: map[*ast.Ident]types.Object{},
+	}
+	var conf types.Config
+	conf.Importer = importer.Default()
+	if _, err := conf.Check(dir, fset, astFiles, info); err != nil {
 		panic(err)
 	}
 	return &file{
 		File: af,
+		info: info,
 		data: make(map[string][]*Interface),
 	}
 }
@@ -72,9 +109,9 @@ func (f *file) GetInterfaces() {
 				case *ast.FuncType:
 					i := &Interface{
 						Name:        x.Names[0].Name,
-						Param:       getFields(v.Params.List),
-						ReturnType:  getFields(v.Results.List),
-						ReturnValue: getValues(v.Results.List),
+						Param:       f.getFields(v.Params.List),
+						ReturnType:  f.getFields(v.Results.List),
+						ReturnValue: f.getValues(v.Results.List),
 					}
 					result = append(result, i)
 				}
@@ -88,6 +125,18 @@ func (f *file) GetInterfaces() {
 func (f *file) MockGen() {
 	var buf bytes.Buffer
 	buf.WriteString("package main\n\n")
+
+	imports := f.File.Imports
+	if ln := len(imports); ln > 1 {
+		fmt.Fprintf(&buf, "import (\n")
+		for _, i := range imports {
+			fmt.Fprintf(&buf, "%s\n", i.Path.Value)
+		}
+		fmt.Fprintf(&buf, ")\n\n")
+	} else if ln == 1 {
+		pp.Println(imports)
+		fmt.Fprintf(&buf, "import %s\n\n", imports[0].Path.Value)
+	}
 	for k, data := range f.data {
 		fmt.Fprintf(&buf, "type %sMock struct {\n", k)
 		for _, d := range data {
@@ -126,41 +175,41 @@ func (f *file) MockGen() {
 	fi.Close()
 }
 
-func getFields(list []*ast.Field) string {
+func (f *file) getFields(list []*ast.Field) string {
 	params := make([]string, 0, len(list))
 	for _, p := range list {
 		if len(p.Names) > 0 {
-			params = append(params, p.Names[0].Name+" "+getType(p.Type))
+			params = append(params, p.Names[0].Name+" "+f.getType(p.Type))
 		} else {
-			params = append(params, getType(p.Type))
+			params = append(params, f.getType(p.Type))
 		}
 	}
 	return strings.Join(params, ", ")
 }
 
-func getValues(list []*ast.Field) string {
+func (f *file) getValues(list []*ast.Field) string {
 	params := make([]string, 0, len(list))
 	for _, p := range list {
-		params = append(params, getZeroValue(p.Type))
+		params = append(params, f.getZeroValue(p.Type))
 	}
 	return strings.Join(params, ", ")
 }
 
-func getZeroValue(expr ast.Expr) string {
+func (f *file) getZeroValue(expr ast.Expr) string {
 	switch v := expr.(type) {
 	case *ast.StarExpr, *ast.SliceExpr, *ast.ArrayType, *ast.MapType, *ast.FuncType,
 		*ast.ChanType, *ast.StructType, *ast.InterfaceType:
 		return "nil"
 	case *ast.SelectorExpr:
-		return getZeroValue(v.Sel)
+		return f.getZeroValue(v.Sel)
 	case *ast.Ident:
-		return getBuiltinZeroValue(v)
+		return f.getBuiltinZeroValue(v)
 	}
 	return "nil"
 }
 
-func getBuiltinZeroValue(ident *ast.Ident) string {
-	switch ident.Name {
+func (f *file) getBuiltinZeroValue(ident *ast.Ident) string {
+	switch f.info.TypeOf(ident).Underlying().String() {
 	case "uint8", "uint16", "uint32", "uint64", "uint", "uintptr",
 		"int8", "int16", "int32", "int64", "int", "byte", "rune",
 		"float32", "float64",
@@ -170,36 +219,29 @@ func getBuiltinZeroValue(ident *ast.Ident) string {
 		return "false"
 	case "string":
 		return `""`
-	case "error":
-		return "nil"
 	default:
-		if ident.Obj != nil {
-			if v, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
-				return getBuiltinZeroValue(v.Type.(*ast.Ident))
-			}
-		}
-		pp.Println(ident)
+		//pp.Println(t)
 		return "nil"
 	}
 }
 
-func getType(expr ast.Expr) string {
+func (f *file) getType(expr ast.Expr) string {
 	switch v := expr.(type) {
 	case *ast.Ident:
 		return v.Name
 	case *ast.SelectorExpr:
-		return getType(v.X) + "." + v.Sel.Name
+		return f.getType(v.X) + "." + v.Sel.Name
 	case *ast.StarExpr:
-		return "*" + getType(v.X)
+		return "*" + f.getType(v.X)
 	case *ast.SliceExpr:
-		return "[]" + getType(v.X)
+		return "[]" + f.getType(v.X)
 	case *ast.MapType:
-		return "map[" + getType(v.Key) + "]" + getType(v.Value)
+		return "map[" + f.getType(v.Key) + "]" + f.getType(v.Value)
 	case *ast.FuncType:
-		return "func(" + getFields(v.Params.List) + ") " + getFields(v.Results.List)
+		return "func(" + f.getFields(v.Params.List) + ") " + f.getFields(v.Results.List)
 	}
-	pp.Println(expr)
-	return "???"
+	//pp.Println(expr)
+	return "nil"
 }
 
 // walker adapts a function to satisfy the ast.Visitor interface.
@@ -207,6 +249,7 @@ func getType(expr ast.Expr) string {
 type walker func(ast.Node) bool
 
 func (w walker) Visit(node ast.Node) ast.Visitor {
+	//pp.Println(node)
 	if w(node) {
 		return w
 	}

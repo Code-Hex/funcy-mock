@@ -1,13 +1,16 @@
-package main
+package tmp
 
-import "reflect"
+import (
+	"go/types"
+	"reflect"
+)
 
 type Num int
 
 // ServiceI interface holds interfaces for offer services
 type ServiceI interface {
 	// Offer interfaces
-	GetOne(ctx reflect.Kind, ID string) (reflect.Kind, error)
+	GetOne(ctx reflect.Kind, ID string) (types.BasicKind, error)
 	GetList(ctx reflect.Kind, input *reflect.Kind) (map[string]string, error)
 	ValidateItem(ctx reflect.Kind, input *reflect.SliceHeader) (output *reflect.Type, err error)
 	Create(ctx reflect.Kind, input *reflect.ChanDir) (reflect.Kind, error)
