@@ -16,7 +16,7 @@ type ServiceI interface {
 	Create(ctx reflect.Kind, input *reflect.ChanDir) (reflect.Kind, error)
 	Accept(ctx reflect.Kind, ID string) (reflect.Kind, error)
 	Decline(ctx reflect.Kind, ID string) (reflect.Kind, error)
-	CancelByUser(ctx reflect.Kind, ID string) (reflect.Kind, error)
+	CancelByUser(reflect.Kind, string) (reflect.Kind, error)
 	Completing(ctx reflect.Kind, ID string) (reflect.Kind, error)
 	BackToAccept(ctx reflect.Kind, ID string) (reflect.Kind, error)
 	// Admin interfaces

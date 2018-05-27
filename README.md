@@ -1,2 +1,2 @@
-# mockgen
+# funcy-mock
 WIP

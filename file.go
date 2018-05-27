@@ -1,37 +1,15 @@
-package main
+package funcy
 
 import (
-	"bytes"
-	"fmt"
 	"go/ast"
 	"go/build"
-	"go/format"
 	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
-	"log"
-	"os"
-	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/k0kubun/pp"
 )
-
-type Interface struct {
-	Name        string
-	Param       string
-	ReturnType  string
-	ReturnValue string
-}
-
-func (i *Interface) ReturnField() string {
-	if strings.Contains(i.ReturnType, ",") {
-		return "(" + i.ReturnType + ")"
-	}
-	return i.ReturnType
-}
 
 type file struct {
 	*ast.File
@@ -39,67 +17,80 @@ type file struct {
 	data map[string][]*Interface
 }
 
-func (f *file) walk(fn func(ast.Node) bool) {
-	ast.Walk(walker(fn), f.File)
-}
-
+/*
 func main() {
 	f := MustParse(`tmp/interface.go`)
 	f.GetInterfaces()
 	f.MockGen()
 }
+*/
 
-func MustParse(dir string) *file {
+func parse(fi string) (*file, error) {
+	dir := filepath.Dir(fi)
 	fset := token.NewFileSet()
-	af, err := parser.ParseFile(fset, dir, nil, parser.AllErrors)
+	af, err := parser.ParseFile(fset, fi, nil, parser.AllErrors)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	buildPkg, err := build.ImportDir(filepath.Dir(dir), 0)
+	astFiles, err := loadStdlib(fset, af, dir)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	pp.Println(filepath.Dir(dir))
-	astFiles := make([]*ast.File, 0, 1+len(buildPkg.GoFiles)+len(buildPkg.CgoFiles))
-	astFiles = append(astFiles, af)
-	d := filepath.Dir(dir)
-	base := filepath.Base(dir)
-	for _, files := range [...][]string{buildPkg.GoFiles, buildPkg.CgoFiles} {
-		for _, filename := range files {
-			if filename == base {
-				// already parsed this file above
-				continue
-			}
-			file, err := parser.ParseFile(fset, path.Join(d, filename), nil, 0)
-			if err != nil {
-				panic(err)
-			}
-			astFiles = append(astFiles, file)
-		}
+	info, err := check(fset, astFiles, dir)
+	if err != nil {
+		return nil, err
 	}
+	return &file{
+		File: af,
+		info: info,
+		data: make(map[string][]*Interface),
+	}, nil
+}
+
+func check(fset *token.FileSet, astFiles []*ast.File, dir string) (*types.Info, error) {
 	info := &types.Info{
 		Uses: map[*ast.Ident]types.Object{},
 	}
 	var conf types.Config
 	conf.Importer = importer.Default()
 	if _, err := conf.Check(dir, fset, astFiles, info); err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &file{
-		File: af,
-		info: info,
-		data: make(map[string][]*Interface),
-	}
+	return info, nil
 }
 
-func (f *file) GetInterfaces() {
-	key := ""
+func loadStdlib(fset *token.FileSet, af *ast.File, dir string) ([]*ast.File, error) {
+	buildPkg, err := build.ImportDir(dir, 0)
+	if err != nil {
+		return nil, err
+	}
+	base := filepath.Base(dir)
+	astFiles := make([]*ast.File, 0, 1+len(buildPkg.GoFiles)+len(buildPkg.CgoFiles))
+	astFiles = append(astFiles, af)
+	for _, files := range [...][]string{buildPkg.GoFiles, buildPkg.CgoFiles} {
+		for _, file := range files {
+			if file == base {
+				// already parsed this file above
+				continue
+			}
+			file, err := parser.ParseFile(fset, filepath.Join(dir, file), nil, 0)
+			if err != nil {
+				return nil, err
+			}
+			astFiles = append(astFiles, file)
+		}
+	}
+	return astFiles, nil
+}
+
+func (f *file) getInterfaces() {
+	name := ""
 	result := make([]*Interface, 0)
 	f.walk(func(n ast.Node) bool {
 		switch v := n.(type) {
 		case *ast.TypeSpec:
 			if _, ok := v.Type.(*ast.InterfaceType); ok {
-				key = v.Name.Name
+				name = v.Name.Name
 			}
 		case *ast.InterfaceType:
 			// Do not check interface method names.
@@ -116,63 +107,14 @@ func (f *file) GetInterfaces() {
 					result = append(result, i)
 				}
 			}
-			f.data[key] = result
+			f.data[name] = result
 		}
 		return true
 	})
 }
 
-func (f *file) MockGen() {
-	var buf bytes.Buffer
-	buf.WriteString("package main\n\n")
-
-	imports := f.File.Imports
-	if ln := len(imports); ln > 1 {
-		fmt.Fprintf(&buf, "import (\n")
-		for _, i := range imports {
-			fmt.Fprintf(&buf, "%s\n", i.Path.Value)
-		}
-		fmt.Fprintf(&buf, ")\n\n")
-	} else if ln == 1 {
-		pp.Println(imports)
-		fmt.Fprintf(&buf, "import %s\n\n", imports[0].Path.Value)
-	}
-	for k, data := range f.data {
-		fmt.Fprintf(&buf, "type %sMock struct {\n", k)
-		for _, d := range data {
-			fmt.Fprintf(&buf, "\t%sMock func() %s\n", d.Name, d.ReturnField())
-		}
-		fmt.Fprint(&buf, "}\n\n")
-
-		fmt.Fprintf(&buf, "func New%sMock() *%sMock {\n", k, k)
-		fmt.Fprintf(&buf, "\treturn &%sMock{\n", k)
-		for _, d := range data {
-			fmt.Fprintf(&buf, "\t\t%sMock: func() %s { return %s },\n", d.Name, d.ReturnField(), d.ReturnValue)
-		}
-		fmt.Fprintf(&buf, "\t}\n}\n\n")
-
-		for _, d := range data {
-			lower := strings.ToLower(k)
-			fmt.Fprintf(&buf, "func (%c *%sMock) %s(%s) %s {\n",
-				lower[0],
-				k,
-				d.Name,
-				d.Param,
-				d.ReturnField(),
-			)
-			fmt.Fprintf(&buf, "\treturn %c.%sMock()\n}\n\n", lower[0], d.Name)
-		}
-	}
-	formatted, err := format.Source(buf.Bytes())
-	if err != nil {
-		log.Fatalf("%s", err.Error())
-	}
-	fi, err := os.Create("mock.go")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fi.Write(formatted)
-	fi.Close()
+func (f *file) walk(fn func(ast.Node) bool) {
+	ast.Walk(walker(fn), f.File)
 }
 
 func (f *file) getFields(list []*ast.Field) string {
@@ -242,16 +184,4 @@ func (f *file) getType(expr ast.Expr) string {
 	}
 	//pp.Println(expr)
 	return "nil"
-}
-
-// walker adapts a function to satisfy the ast.Visitor interface.
-// The function return whether the walk should proceed into the node's children.
-type walker func(ast.Node) bool
-
-func (w walker) Visit(node ast.Node) ast.Visitor {
-	//pp.Println(node)
-	if w(node) {
-		return w
-	}
-	return nil
 }
