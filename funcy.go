@@ -65,5 +65,5 @@ func getDest(opts Options, file string) string {
 		return opts.Dest
 	}
 	sep := strings.Split(file, ".")
-	return strings.Join([]string{sep[0], "_mock", sep[1]}, ".")
+	return strings.Join([]string{sep[0] + "_mock_for_test", sep[1]}, ".")
 }

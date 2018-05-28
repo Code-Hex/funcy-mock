@@ -32,7 +32,7 @@ func parse(fi string) (*file, error) {
 	if err != nil {
 		return nil, err
 	}
-	astFiles, err := loadStdlib(fset, af, dir)
+	astFiles, err := loadStdlib(fset, af, fi, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -59,12 +59,12 @@ func check(fset *token.FileSet, astFiles []*ast.File, dir string) (*types.Info, 
 	return info, nil
 }
 
-func loadStdlib(fset *token.FileSet, af *ast.File, dir string) ([]*ast.File, error) {
+func loadStdlib(fset *token.FileSet, af *ast.File, path, dir string) ([]*ast.File, error) {
 	buildPkg, err := build.ImportDir(dir, 0)
 	if err != nil {
 		return nil, err
 	}
-	base := filepath.Base(dir)
+	base := filepath.Base(path)
 	astFiles := make([]*ast.File, 0, 1+len(buildPkg.GoFiles)+len(buildPkg.CgoFiles))
 	astFiles = append(astFiles, af)
 	for _, files := range [...][]string{buildPkg.GoFiles, buildPkg.CgoFiles} {

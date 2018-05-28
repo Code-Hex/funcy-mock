@@ -67,7 +67,7 @@ func (s *ServiceIMock) Decline(ctx reflect.Kind, ID string) (reflect.Kind, error
 	return s.DeclineMock()
 }
 
-func (s *ServiceIMock) CancelByUser(ctx reflect.Kind, ID string) (reflect.Kind, error) {
+func (s *ServiceIMock) CancelByUser(reflect.Kind, string) (reflect.Kind, error) {
 	return s.CancelByUserMock()
 }
 
