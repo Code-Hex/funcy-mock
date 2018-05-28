@@ -1,0 +1,11 @@
+*
+!*.*
+!*/
+!LICENSE
+!.gitignore
+!.travis.yml
+!Makefile
+vendor
+.DS_Store
+.envrc
+.vscode
