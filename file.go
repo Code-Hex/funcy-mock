@@ -17,14 +17,6 @@ type file struct {
 	data map[string][]*Interface
 }
 
-/*
-func main() {
-	f := MustParse(`tmp/interface.go`)
-	f.GetInterfaces()
-	f.MockGen()
-}
-*/
-
 func parse(fi string) (*file, error) {
 	dir := filepath.Dir(fi)
 	fset := token.NewFileSet()
