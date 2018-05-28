@@ -12,7 +12,7 @@ const indent = "    "
 
 type Options struct {
 	Help    bool   `short:"h" long:"help" description:"show this message"`
-	Package string `short:"p" long:"pkg" default:"main" description:"specify the package name"`
+	Package string `short:"p" long:"pkg" description:"specify the package name"`
 	Dest    string `short:"d" long:"dest" description:"specify the output destination"`
 }
 

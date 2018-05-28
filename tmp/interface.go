@@ -27,6 +27,3 @@ type ServiceI interface {
 	ExpireNotify(ctx reflect.Kind, input *reflect.SliceHeader) error
 	CompleteByAdmin(ctx *reflect.Kind, input *reflect.Method) (err error, f func(error) error)
 }
-
-func main() {
-}

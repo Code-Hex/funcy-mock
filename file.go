@@ -13,6 +13,7 @@ import (
 
 type file struct {
 	*ast.File
+	pkg  string
 	info *types.Info
 	data map[string][]*Interface
 }
@@ -34,6 +35,7 @@ func parse(fi string) (*file, error) {
 	}
 	return &file{
 		File: af,
+		pkg:  af.Name.Name,
 		info: info,
 		data: make(map[string][]*Interface),
 	}, nil
@@ -76,7 +78,7 @@ func loadStdlib(fset *token.FileSet, af *ast.File, path, dir string) ([]*ast.Fil
 }
 
 func (f *file) getInterfaces() {
-	name := ""
+	name := "" // interface name
 	result := make([]*Interface, 0)
 	f.walk(func(n ast.Node) bool {
 		switch v := n.(type) {
@@ -85,8 +87,6 @@ func (f *file) getInterfaces() {
 				name = v.Name.Name
 			}
 		case *ast.InterfaceType:
-			// Do not check interface method names.
-			// They are often constrainted by the method names of concrete types.
 			for _, x := range v.Methods.List {
 				switch v := x.Type.(type) {
 				case *ast.FuncType:

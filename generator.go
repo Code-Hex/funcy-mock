@@ -9,7 +9,7 @@ import (
 
 func (f *file) generate() []byte {
 	var buf bytes.Buffer
-	buf.WriteString("package main\n\n")
+	fmt.Fprintf(&buf, "package %s\n\n", f.pkg)
 	f.genimports(&buf)
 
 	for k, data := range f.data {

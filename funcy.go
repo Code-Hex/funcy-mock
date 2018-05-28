@@ -21,13 +21,17 @@ func Run() int {
 }
 
 func run() error {
-	file, dest, err := prepare()
+	var opts Options
+	file, dest, err := prepare(&opts)
 	if err != nil {
 		return errors.Wrap(err, "Failed to prepare")
 	}
 	f, err := parse(file)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse go file")
+	}
+	if opts.Package != "" {
+		f.pkg = opts.Package
 	}
 	f.getInterfaces()
 	bytes := f.generate()
@@ -48,16 +52,15 @@ func run() error {
 	return nil
 }
 
-func prepare() (string, string, error) {
-	var opts Options
-	args, err := parseOptions(&opts, os.Args[1:])
+func prepare(opts *Options) (string, string, error) {
+	args, err := parseOptions(opts, os.Args[1:])
 	if err != nil {
 		return "", "", err
 	}
 	if len(args) == 0 || opts.Help {
 		return "", "", makeUsageError(errors.New(opts.usage()))
 	}
-	return args[0], getDest(opts, args[0]), nil
+	return args[0], getDest(*opts, args[0]), nil
 }
 
 func getDest(opts Options, file string) string {
