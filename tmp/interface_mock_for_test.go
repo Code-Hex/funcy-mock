@@ -1,104 +1,37 @@
 package tmp
 
-import (
-	"go/types"
-	"reflect"
-)
+import "context"
 
-type ServiceIMock struct {
-	GetOneMock          func() (types.BasicKind, error)
-	GetListMock         func() (map[string]string, error)
-	ValidateItemMock    func() (output *reflect.Type, err error)
-	CreateMock          func() (reflect.Kind, error)
-	AcceptMock          func() (reflect.Kind, error)
-	DeclineMock         func() (reflect.Kind, error)
-	CancelByUserMock    func() (reflect.Kind, error)
-	CompletingMock      func() (reflect.Kind, error)
-	BackToAcceptMock    func() (reflect.Kind, error)
-	UpdateMock          func() (reflect.Kind, error)
-	DeleteMock          func() (reflect.Kind, error)
-	CancelByAdminMock   func() (Num, error)
-	ExpireMock          func() error
-	ExpireNotifyMock    func() error
-	CompleteByAdminMock func() (err error, f func(error) error)
+type PersonMock struct {
+	say func(context.Context) (string, error)
+	age func() Num
 }
 
-func NewServiceIMock() *ServiceIMock {
-	return &ServiceIMock{
-		GetOneMock:          func() (types.BasicKind, error) { return 0, nil },
-		GetListMock:         func() (map[string]string, error) { return nil, nil },
-		ValidateItemMock:    func() (output *reflect.Type, err error) { return nil, nil },
-		CreateMock:          func() (reflect.Kind, error) { return 0, nil },
-		AcceptMock:          func() (reflect.Kind, error) { return 0, nil },
-		DeclineMock:         func() (reflect.Kind, error) { return 0, nil },
-		CancelByUserMock:    func() (reflect.Kind, error) { return 0, nil },
-		CompletingMock:      func() (reflect.Kind, error) { return 0, nil },
-		BackToAcceptMock:    func() (reflect.Kind, error) { return 0, nil },
-		UpdateMock:          func() (reflect.Kind, error) { return 0, nil },
-		DeleteMock:          func() (reflect.Kind, error) { return 0, nil },
-		CancelByAdminMock:   func() (Num, error) { return 0, nil },
-		ExpireMock:          func() error { return nil },
-		ExpireNotifyMock:    func() error { return nil },
-		CompleteByAdminMock: func() (err error, f func(error) error) { return nil, nil },
+func NewPersonMock() *PersonMock {
+	return &PersonMock{
+		say: func(context.Context) (string, error) { return "", nil },
+		age: func() Num { return 0 },
 	}
 }
 
-func (s *ServiceIMock) GetOne(ctx reflect.Kind, ID string) (types.BasicKind, error) {
-	return s.GetOneMock()
+func (p *PersonMock) Say(c context.Context) (string, error) {
+	return p.say(c)
 }
 
-func (s *ServiceIMock) GetList(ctx reflect.Kind, input *reflect.Kind) (map[string]string, error) {
-	return s.GetListMock()
+func (p *PersonMock) SetSay(f func(context.Context) (string, error)) {
+	if f == nil {
+		panic("You should specify the mock function")
+	}
+	p.say = f
 }
 
-func (s *ServiceIMock) ValidateItem(ctx reflect.Kind, input *reflect.SliceHeader) (output *reflect.Type, err error) {
-	return s.ValidateItemMock()
+func (p *PersonMock) Age() Num {
+	return p.age()
 }
 
-func (s *ServiceIMock) Create(ctx reflect.Kind, input *reflect.ChanDir) (reflect.Kind, error) {
-	return s.CreateMock()
-}
-
-func (s *ServiceIMock) Accept(ctx reflect.Kind, ID string) (reflect.Kind, error) {
-	return s.AcceptMock()
-}
-
-func (s *ServiceIMock) Decline(ctx reflect.Kind, ID string) (reflect.Kind, error) {
-	return s.DeclineMock()
-}
-
-func (s *ServiceIMock) CancelByUser(reflect.Kind, string) (reflect.Kind, error) {
-	return s.CancelByUserMock()
-}
-
-func (s *ServiceIMock) Completing(ctx reflect.Kind, ID string) (reflect.Kind, error) {
-	return s.CompletingMock()
-}
-
-func (s *ServiceIMock) BackToAccept(ctx reflect.Kind, ID string) (reflect.Kind, error) {
-	return s.BackToAcceptMock()
-}
-
-func (s *ServiceIMock) Update(ctx reflect.Kind, input nil) (reflect.Kind, error) {
-	return s.UpdateMock()
-}
-
-func (s *ServiceIMock) Delete(ctx reflect.Kind, input nil) (reflect.Kind, error) {
-	return s.DeleteMock()
-}
-
-func (s *ServiceIMock) CancelByAdmin(ctx reflect.Kind, input nil) (Num, error) {
-	return s.CancelByAdminMock()
-}
-
-func (s *ServiceIMock) Expire(ctx reflect.Kind, input *reflect.SelectCase) error {
-	return s.ExpireMock()
-}
-
-func (s *ServiceIMock) ExpireNotify(ctx reflect.Kind, input *reflect.SliceHeader) error {
-	return s.ExpireNotifyMock()
-}
-
-func (s *ServiceIMock) CompleteByAdmin(ctx *reflect.Kind, input *reflect.Method) (err error, f func(error) error) {
-	return s.CompleteByAdminMock()
+func (p *PersonMock) SetAge(f func() Num) {
+	if f == nil {
+		panic("You should specify the mock function")
+	}
+	p.age = f
 }

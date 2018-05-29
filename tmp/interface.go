@@ -1,12 +1,15 @@
 package tmp
 
-import (
-	"go/types"
-	"reflect"
-)
+import "context"
 
 type Num int
 
+type Person interface {
+	Say(context.Context) (string, error)
+	Age() Num
+}
+
+/*
 // ServiceI interface holds interfaces for offer services
 type ServiceI interface {
 	// Offer interfaces
@@ -27,3 +30,4 @@ type ServiceI interface {
 	ExpireNotify(ctx reflect.Kind, input *reflect.SliceHeader) error
 	CompleteByAdmin(ctx *reflect.Kind, input *reflect.Method) (err error, f func(error) error)
 }
+*/
