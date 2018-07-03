@@ -87,6 +87,7 @@ func (f *file) getInterfaces() {
 			if _, ok := v.Type.(*ast.InterfaceType); ok {
 				name = v.Name.Name
 			}
+			result = result[:0]
 		case *ast.InterfaceType:
 			for _, x := range v.Methods.List {
 				switch v := x.Type.(type) {
