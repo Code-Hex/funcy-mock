@@ -10,6 +10,8 @@ You can try following:
 - `git clone git@github.com:Code-Hex/funcy-mock.git && cd funcy-mock/tmp`
 - `funcygen demo.go`
 
+If you have a some question, You run `funcygen -h` or report to issue.
+
 ## Description
 
 **THIS TOOL IS BETA QUALITY.**
