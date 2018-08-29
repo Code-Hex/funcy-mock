@@ -10,6 +10,8 @@ import (
 	"go/types"
 	"path/filepath"
 	"strings"
+
+	"github.com/k0kubun/pp"
 )
 
 type file struct {
@@ -207,7 +209,6 @@ func (f *file) getBuiltinZeroValue(ident *ast.Ident) string {
 	case "string":
 		return `""`
 	default:
-		//pp.Println(t)
 		return "nil"
 	}
 }
@@ -226,7 +227,19 @@ func (f *file) getType(expr ast.Expr) string {
 		return "map[" + f.getType(v.Key) + "]" + f.getType(v.Value)
 	case *ast.FuncType:
 		return "func(" + f.getParamTypes(v.Params.List) + ") " + f.getReturnFields(v.Results.List)
+	case *ast.ChanType:
+		ch := "chan "
+		switch types.ChanDir(v.Dir) {
+		case types.SendRecv:
+		case types.SendOnly:
+			ch += "<-"
+		case types.RecvOnly:
+			ch = "<-" + ch
+		}
+		return ch + f.getType(v.Value)
+	case *ast.StructType:
+		return "struct{}"
 	}
-	//pp.Println(expr)
+	pp.Println(expr)
 	return "nil"
 }
