@@ -10,8 +10,6 @@ import (
 	"go/types"
 	"path/filepath"
 	"strings"
-
-	"github.com/k0kubun/pp"
 )
 
 type file struct {
@@ -19,6 +17,32 @@ type file struct {
 	pkg  string
 	info *types.Info
 	data map[string][]*Interface
+}
+
+var reserved = map[string]string{
+	"bool":        "bval",
+	"int":         "ival",
+	"int8":        "i8val",
+	"int16":       "i16val",
+	"int32":       "i32val",
+	"int64":       "i64val",
+	"uint":        "uival",
+	"uint8":       "ui8val",
+	"uint16":      "ui16val",
+	"uint32":      "ui32val",
+	"uint64":      "ui64val",
+	"float32":     "f32val",
+	"float64":     "f64val",
+	"complex64":   "cmplx64val",
+	"complex128":  "cmplx128val",
+	"string":      "strval",
+	"struct{}":    "structval",
+	"interface{}": "ifaceval",
+}
+
+var reservedPrefix = []string{
+	"map",
+	"[]",
 }
 
 func parse(fi string) (*file, error) {
@@ -137,28 +161,60 @@ func (f *file) getParamTypes(list []*ast.Field) string {
 }
 
 func (f *file) getParamField(list []*ast.Field) (string, string) {
-	m := make(map[byte]uint, 0)
+	m := make(map[string]uint, 0)
 	params := make([]string, 0, len(list))
 	names := make([]string, 0, len(list))
 	for _, p := range list {
 		if len(p.Names) > 0 {
 			params = append(params, p.Names[0].Name+" "+f.getType(p.Type))
+			names = append(names, p.Names[0].Name)
 		} else {
 			t := f.getType(p.Type)
+			if t == "nil" {
+				t = "interface{}"
+			}
 			lt := strings.ToLower(t)
-			key := lt[0]
+			key := makeIdentName(lt)
 			if i, ok := m[key]; ok {
-				params = append(params, fmt.Sprintf("%c%d %s", key, i, t))
-				names = append(names, fmt.Sprintf("%c%d", key, i))
+				params = append(params, fmt.Sprintf("%s%d %s", key, i, t))
+				names = append(names, fmt.Sprintf("%s%d", key, i))
 				m[key]++
 			} else {
-				params = append(params, fmt.Sprintf("%c %s", key, t))
-				names = append(names, fmt.Sprintf("%c", key))
+				params = append(params, fmt.Sprintf("%s %s", key, t))
+				names = append(names, fmt.Sprintf("%s", key))
 				m[key] = 0
 			}
 		}
 	}
 	return strings.Join(params, ", "), strings.Join(names, ", ")
+}
+
+func makeIdentName(lower string) string {
+	ident := firstStep(lower)
+	if v, ok := reserved[ident]; ok {
+		return v
+	}
+	for _, v := range reservedPrefix {
+		if strings.HasPrefix(ident, v) {
+			idx := strings.Index(v, "]")
+			if idx != -1 {
+				return ident[idx+1:]
+			}
+		}
+	}
+	return ident
+}
+
+func firstStep(lower string) string {
+	idx := strings.Index(lower, ".")
+	if idx != -1 {
+		typ := lower[idx+1:]
+		if typ == "context" {
+			return "ctx"
+		}
+		return typ
+	}
+	return lower
 }
 
 func (f *file) getReturnFields(list []*ast.Field) string {
@@ -239,7 +295,8 @@ func (f *file) getType(expr ast.Expr) string {
 		return ch + f.getType(v.Value)
 	case *ast.StructType:
 		return "struct{}"
+	case *ast.InterfaceType:
+		return "interface{}"
 	}
-	pp.Println(expr)
 	return "nil"
 }

@@ -7,7 +7,6 @@ import "go/ast"
 type walker func(ast.Node) bool
 
 func (w walker) Visit(node ast.Node) ast.Visitor {
-	//pp.Println(node)
 	if w(node) {
 		return w
 	}
