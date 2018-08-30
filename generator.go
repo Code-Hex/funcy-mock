@@ -61,7 +61,6 @@ func (f *file) generate() []byte {
 			fmt.Fprintf(&buf, "%c.%s = f\n}\n\n", lower[0], d.PrivateName())
 		}
 	}
-	//fmt.Println(buf.String())
 	return buf.Bytes()
 }
 

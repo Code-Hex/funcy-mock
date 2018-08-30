@@ -40,9 +40,9 @@ var reserved = map[string]string{
 	"interface{}": "ifaceval",
 }
 
-var reservedPrefix = []string{
-	"map",
-	"[]",
+var reservedPrefix = map[string]string{
+	"map": "map",
+	"[]":  "s",
 }
 
 func parse(fi string) (*file, error) {
@@ -166,13 +166,11 @@ func (f *file) getParamField(list []*ast.Field) (string, string) {
 	names := make([]string, 0, len(list))
 	for _, p := range list {
 		if len(p.Names) > 0 {
+			// strings.Join()
 			params = append(params, p.Names[0].Name+" "+f.getType(p.Type))
 			names = append(names, p.Names[0].Name)
 		} else {
 			t := f.getType(p.Type)
-			if t == "nil" {
-				t = "interface{}"
-			}
 			lt := strings.ToLower(t)
 			key := makeIdentName(lt)
 			if i, ok := m[key]; ok {
@@ -194,11 +192,11 @@ func makeIdentName(lower string) string {
 	if v, ok := reserved[ident]; ok {
 		return v
 	}
-	for _, v := range reservedPrefix {
-		if strings.HasPrefix(ident, v) {
-			idx := strings.Index(v, "]")
+	for k, v := range reservedPrefix {
+		if strings.HasPrefix(ident, k) {
+			idx := strings.Index(ident, "]")
 			if idx != -1 {
-				return ident[idx+1:]
+				return makeIdentName(ident[idx+1:]) + v
 			}
 		}
 	}
@@ -206,6 +204,11 @@ func makeIdentName(lower string) string {
 }
 
 func firstStep(lower string) string {
+	for k := range reservedPrefix {
+		if strings.HasPrefix(lower, k) {
+			return lower
+		}
+	}
 	idx := strings.Index(lower, ".")
 	if idx != -1 {
 		typ := lower[idx+1:]
@@ -277,8 +280,8 @@ func (f *file) getType(expr ast.Expr) string {
 		return f.getType(v.X) + "." + v.Sel.Name
 	case *ast.StarExpr:
 		return "*" + f.getType(v.X)
-	case *ast.SliceExpr:
-		return "[]" + f.getType(v.X)
+	case *ast.ArrayType:
+		return "[]" + f.getType(v.Elt)
 	case *ast.MapType:
 		return "map[" + f.getType(v.Key) + "]" + f.getType(v.Value)
 	case *ast.FuncType:
